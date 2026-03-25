@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The One Terminal</title>
+  <style>
+    body {
+      background: radial-gradient(circle at center, #1a0a05 0%, #050201 80%, #000000 100%);
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Georgia', serif;
+      overflow: hidden;
+    }
+
+    .window-wrapper {
+      position: relative;
+      width: 850px;
+      max-width: 92vw;
+      height: 600px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #ff4500, #ff8c00, #8b0000, #ff4500); 
+      padding: 2px; 
+      box-shadow: 0 0 40px rgba(255, 69, 0, 0.4), 0 30px 80px rgba(0, 0, 0, 0.9);
+    }
+
+    .terminal-window {
+      width: 100%;
+      height: 100%;
+      background-color: rgba(10, 5, 2, 0.94); 
+      backdrop-filter: blur(15px); 
+      -webkit-backdrop-filter: blur(15px);
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .terminal-body {
+      padding: 20px;
+      flex-grow: 1;
+      overflow-y: auto;
+      color: #dfba69; 
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    #terminal { white-space: pre; display: inline; }
+
+    .cursor {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      background-color: #ff4500;
+      border-radius: 50%;
+      box-shadow: 0 0 15px #ff4500, 0 0 5px #fff;
+      vertical-align: middle;
+      animation: eye-pulse 1s infinite alternate;
+    }
+
+    @keyframes eye-pulse {
+      0% { transform: scale(0.8); opacity: 0.6; }
+      100% { transform: scale(1.2); opacity: 1; }
+    }
+
+    @media (max-width: 768px) {
+      .window-wrapper { height: 85vh; }
+      .terminal-body { font-size: 11px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="window-wrapper">
+    <div class="terminal-window">
+      <div class="terminal-body" id="terminal-body">
+        <div id="terminal"></div><span class="cursor"></span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const terminal = document.getElementById('terminal');
+    const terminalBody = document.getElementById('terminal-body');
+    const GOLD = "#dfba69"; const FIRE = "#ff4500"; const ASH = "#707070";
+
+    function typeString(text, speed = 10, color = null) {
+      return new Promise(resolve => {
+        let i = 0;
+        const span = document.createElement('span');
+        if (color) span.style.color = color;
+        terminal.appendChild(span);
+        function typeChar() {
+          if (i < text.length) {
+            span.textContent += text.charAt(i);
+            i++;
+            terminalBody.scrollTop = terminalBody.scrollHeight;
+            setTimeout(typeChar, speed); 
+          } else { resolve(); }
+        }
+        typeChar();
+      });
+    }
+
+    async function printPrompt() {
+      await typeString("\n🔥 ", 0, FIRE);
+      await typeString("sauron@localhost", 0, GOLD);
+      await typeString(" ~ \n⚔️ ❯ ", 0, FIRE);
+    }
+
+    async function runBootSequence() {
+      // 1. ASCII Header
+      const header = `      \\  \\____/\\__/____/  /   Mordor-OS
+       \\      /  \\/  \\    /    ---------
+        \\____/  /\\  \\____/     Artifact: One Terminal\n\n`;
+      const pre = document.createElement('span');
+      pre.style.color = FIRE;
+      pre.textContent = header;
+      terminal.appendChild(pre);
+
+      await printPrompt();
+      await typeString("Gazing into the Palantír...\n", 20, FIRE);
+
+      // 2. Network Info
+      try {
+        const res = await fetch('https://ipapi.co/json/');
+        const data = await res.json();
+        await typeString(`  ├─ Sigil (IP) : ${data.ip}\n`, 5, GOLD);
+        await typeString(`  ╰─ Territory  : ${data.city}, ${data.country_name}\n`, 5, GOLD);
+
+        // 3. Weather Info
+        await typeString("\n◈ Consulting the Elements:\n", 10, FIRE);
+        const wRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${data.latitude}&longitude=${data.longitude}&current_weather=true`);
+        const wData = await wRes.json();
+        await typeString(`  ├─ Heat : ${wData.current_weather.temperature}°C\n`, 5, GOLD);
+        await typeString(`  ╰─ Wind : ${wData.current_weather.windspeed} km/h\n`, 5, GOLD);
+      } catch (e) {
+        await typeString("  [!] Sensors clouded by shadow.\n", 5, "#8b0000");
+      }
+
+      // 4. Hardware Info
+      await typeString("\n◈ Measuring Forge Power:\n", 10, FIRE);
+      await typeString(`  ├─ Platform : ${navigator.platform}\n`, 5, GOLD);
+      await typeString(`  ├─ Legions  : ${navigator.hardwareConcurrency} Orcs\n`, 5, GOLD);
+      await typeString(`  ╰─ Mithril  : ${navigator.deviceMemory || '4'} GB\n`, 5, GOLD);
+
+      // 5. Battery Info
+      if (navigator.getBattery) {
+        const battery = await navigator.getBattery();
+        await typeString("\n◈ Flame Status:\n", 10, FIRE);
+        await typeString(`  ╰─ Level : ${Math.round(battery.level * 100)}%\n`, 5, GOLD);
+      }
+
+      await printPrompt();
+      terminalBody.scrollTop = terminalBody.scrollHeight;
+    }
+
+    runBootSequence();
+  </script>
+</body>
+</html>

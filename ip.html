@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Terminal Window</title>
+  <style>
+    /* The "Desktop" background */
+    body {
+      background: radial-gradient(circle at center, #1a202c 0%, #0d1117 100%);
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    /* The floating terminal window */
+    .terminal-window {
+      width: 850px;
+      max-width: 95vw;
+      height: 550px;
+      background-color: #050505;
+      border-radius: 8px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7), 0 0 0 1px #333;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* The top title bar */
+    .title-bar {
+      background-color: #1e1e1e;
+      height: 38px;
+      display: flex;
+      align-items: center;
+      padding: 0 15px;
+      border-bottom: 1px solid #000;
+      user-select: none;
+    }
+
+    /* macOS/Ubuntu style window control buttons */
+    .window-controls {
+      display: flex;
+      gap: 8px;
+      width: 60px;
+    }
+
+    .btn {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    .close-btn { background-color: #ff5f56; }
+    .min-btn { background-color: #ffbd2e; }
+    .max-btn { background-color: #27c93f; }
+
+    /* Terminal title */
+    .window-title {
+      flex-grow: 1;
+      text-align: center;
+      color: #999;
+      font-size: 13px;
+      letter-spacing: 0.5px;
+      margin-right: 60px;
+    }
+
+    /* The actual scrolling content area */
+    .terminal-body {
+      padding: 20px;
+      flex-grow: 1;
+      overflow-y: auto;
+      color: #00ff00;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 15px;
+      line-height: 1.5;
+    }
+
+    /* Custom scrollbar for the terminal */
+    .terminal-body::-webkit-scrollbar {
+      width: 10px;
+    }
+    .terminal-body::-webkit-scrollbar-track {
+      background: #0a0a0a;
+    }
+    .terminal-body::-webkit-scrollbar-thumb {
+      background: #333;
+      border-radius: 5px;
+    }
+
+    #terminal {
+      white-space: pre-wrap; 
+      display: inline;
+    }
+
+    .cursor {
+      display: inline-block;
+      width: 10px;
+      height: 16px;
+      background-color: #00ff00;
+      vertical-align: middle;
+      animation: blink 1s step-end infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="terminal-window">
+    <div class="title-bar">
+      <div class="window-controls">
+        <span class="btn close-btn"></span>
+        <span class="btn min-btn"></span>
+        <span class="btn max-btn"></span>
+      </div>
+      <div class="window-title">admin@wsl-node:~</div>
+    </div>
+    
+    <div class="terminal-body" id="terminal-body">
+      <div id="terminal"></div><span class="cursor" id="cursor"></span>
+    </div>
+  </div>
+
+  <script>
+    const terminal = document.getElementById('terminal');
+    const terminalBody = document.getElementById('terminal-body');
+    
+    function typeString(text, speed = 15, color = null) {
+      return new Promise(resolve => {
+        let i = 0;
+        const span = document.createElement('span');
+        if (color) {
+          span.style.color = color;
+          span.style.textShadow = `0 0 5px ${color}`; 
+        }
+        terminal.appendChild(span);
+
+        function typeChar() {
+          if (i < text.length) {
+            span.textContent += text.charAt(i);
+            i++;
+            terminalBody.scrollTop = terminalBody.scrollHeight;
+            setTimeout(typeChar, speed + Math.random() * 10); 
+          } else {
+            resolve();
+          }
+        }
+        typeChar();
+      });
+    }
+
+    function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    async function getNetworkTelemetry() {
+      try {
+        const response = await fetch('https://ipapi.co/json/');
+        if (!response.ok) throw new Error('Network response was not ok');
+        return await response.json();
+      } catch (error) {
+        return null;
+      }
+    }
+
+    async function getAtmosphericData(lat, lon) {
+      try {
+        const response = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
+        if (!response.ok) throw new Error('Weather response was not ok');
+        return await response.json();
+      } catch (error) {
+        return null;
+      }
+    }
+
+    async function runBootSequence() {
+      await typeString("admin@wsl-node:~$ ./sys_diag.sh\n\n");
+      await sleep(300);
+
+      // --- 1. NETWORK & EXTERNAL TELEMETRY (Moved to top) ---
+      await typeString("[*] CHECKING NETWORK INTERFACE...\n");
+      await sleep(400);
+
+      if (navigator.onLine) {
+        await typeString("    [+] LINK STATE: ");
+        await typeString("ONLINE\n", 15, "#00ffff");
+        
+        await typeString("    [*] FETCHING EXTERNAL TELEMETRY...\n");
+        const netData = await getNetworkTelemetry();
+        
+        if (netData) {
+          await typeString(`    [+] PUBLIC IP: `);
+          await typeString(`${netData.ip}\n`, 15, "#00ffff");
+          await typeString(`    [+] ISP: `);
+          await typeString(`${netData.org}\n`, 15, "#00ffff");
+          await typeString(`    [+] LOCATION: `);
+          await typeString(`${netData.city}, ${netData.country_name}\n\n`, 15, "#00ffff");
+
+          // Weather immediately follows network location
+          await typeString("[*] ALIGNING METEOROLOGICAL SENSORS...\n");
+          await sleep(400);
+          
+          const weatherData = await getAtmosphericData(netData.latitude, netData.longitude);
+          
+          if (weatherData && weatherData.current_weather) {
+            const temp = weatherData.current_weather.temperature;
+            const wind = weatherData.current_weather.windspeed;
+            
+            await typeString(`    [-] LOCAL TEMPERATURE: `);
+            await typeString(`${temp} °C\n`, 15, "#ff8c00");
+            await typeString(`    [-] WIND VELOCITY: `);
+            await typeString(`${wind} km/h\n\n`, 15, "#ff8c00");
+          } else {
+            await typeString("    [!] ATMOSPHERIC DATA UNAVAILABLE\n\n", 15, "#ff3333");
+          }
+
+        } else {
+          await typeString("    [!] EXTERNAL TELEMETRY UNAVAILABLE\n\n", 15, "#ff3333");
+        }
+      } else {
+        await typeString("    [-] LINK STATE: ");
+        await typeString("OFFLINE\n\n", 15, "#ff3333");
+      }
+      
+      await sleep(300);
+
+      // --- 2. LOCAL HARDWARE SCAN ---
+      await typeString("[*] INITIATING HARDWARE SCAN...\n");
+      await sleep(400);
+      
+      const cores = navigator.hardwareConcurrency || "UNKNOWN";
+      const ram = navigator.deviceMemory || "UNKNOWN";
+      const screenW = window.screen.width;
+      const screenH = window.screen.height;
+      const platform = navigator.platform;
+      const lang = navigator.language;
+
+      await typeString("    [-] OS PLATFORM: ");
+      await typeString(`${platform}\n`, 15, "#ff00ff");
+      await typeString("    [-] LOGICAL CORES: ");
+      await typeString(`${cores}\n`, 15, "#ff00ff");
+      await typeString("    [-] MEMORY ESTIMATE: ");
+      await typeString(`${ram} GB\n`, 15, "#ff00ff");
+      await typeString("    [-] DISPLAY MATRIX: ");
+      await typeString(`${screenW}x${screenH}\n`, 15, "#ff00ff");
+      await typeString("    [-] SYSTEM LOCALE: ");
+      await typeString(`${lang}\n\n`, 15, "#ff00ff");
+      
+      await sleep(300);
+
+      // --- 3. POWER SUBSYSTEM ---
+      await typeString("[*] CHECKING POWER SUBSYSTEM...\n");
+      if ('getBattery' in navigator) {
+        const battery = await navigator.getBattery();
+        const level = Math.round(battery.level * 100);
+        const charging = battery.charging ? "AC POWER (CHARGING)" : "BATTERY (DISCHARGING)";
+        await typeString("    [-] POWER SOURCE: ");
+        await typeString(`${charging}\n`, 15, "#ffff00");
+        await typeString("    [-] CAPACITY: ");
+        await typeString(`${level}%\n\n`, 15, "#ffff00");
+      } else {
+        await typeString("    [!] POWER SENSORS UNAVAILABLE\n\n", 15, "#ff3333");
+      }
+      
+      await typeString("[*] MONITORING FOR EVENTS...\n");
+      await typeString("admin@wsl-node:~$ ");
+    }
+
+    window.addEventListener('offline', async () => {
+      await typeString("\n[!] CRITICAL: NETWORK DROP DETECTED.\n", 15, "#ff3333");
+      await typeString("admin@wsl-node:~$ ");
+    });
+
+    window.addEventListener('online', async () => {
+      await typeString("\n[+] NOTICE: NETWORK INTERFACE RESTORED.\n", 15, "#00ffff");
+      await typeString("admin@wsl-node:~$ ");
+    });
+
+    runBootSequence();
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Magical Terminal</title>
+  <style>
+    /* A deep, magical night sky background */
+    body {
+      background: radial-gradient(circle at center, #1a1025 0%, #0a0610 80%, #000000 100%);
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    /* The glowing enchanted border */
+    .window-wrapper {
+      position: relative;
+      width: 850px;
+      max-width: 92vw;
+      height: 550px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #d4af37, #8a0303, #1e3f66, #2e753e); /* Hogwarts house colors */
+      padding: 2px; 
+      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.8), 0 0 30px rgba(212, 175, 55, 0.2);
+    }
+
+    /* The parchment-tinted dark glass inside */
+    .terminal-window {
+      width: 100%;
+      height: 100%;
+      background-color: rgba(15, 12, 17, 0.85); 
+      backdrop-filter: blur(10px); 
+      -webkit-backdrop-filter: blur(10px);
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .terminal-body {
+      padding: 25px;
+      flex-grow: 1;
+      overflow-y: auto;
+      overflow-x: auto; 
+      color: #f4e8c1; /* Aged parchment text color */
+      font-family: 'Courier New', 'Fira Code', Consolas, monospace;
+      font-size: 15px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    .terminal-body::-webkit-scrollbar { width: 6px; height: 6px; }
+    .terminal-body::-webkit-scrollbar-track { background: transparent; }
+    .terminal-body::-webkit-scrollbar-thumb { background: rgba(212, 175, 55, 0.3); border-radius: 3px; }
+
+    #terminal {
+      white-space: pre; 
+      display: inline;
+    }
+
+    /* The Wand Tip Cursor */
+    .cursor {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background-color: #d4af37;
+      box-shadow: 0 0 10px #d4af37, 0 0 20px #fff;
+      vertical-align: middle;
+      animation: lumos 1.5s infinite alternate;
+      margin-left: 4px;
+    }
+
+    /* Breathing glow effect for the wand tip */
+    @keyframes lumos {
+      0% { opacity: 0.4; transform: scale(0.8); }
+      100% { opacity: 1; transform: scale(1.1); }
+    }
+
+    @media (max-width: 768px) {
+      .window-wrapper { height: 85vh; }
+      .terminal-body { padding: 15px; font-size: 11px; }
+      .cursor { height: 8px; width: 8px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="window-wrapper">
+    <div class="terminal-window">
+      <div class="terminal-body" id="terminal-body">
+        <div id="terminal"></div><span class="cursor" id="cursor"></span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const terminal = document.getElementById('terminal');
+    const terminalBody = document.getElementById('terminal-body');
+    
+    // Wizarding World Color Palette
+    const PARCHMENT = "#f4e8c1";
+    const GOLD = "#d4af37";
+    const GRYFFINDOR_RED = "#c0392b";
+    const SLYTHERIN_GREEN = "#2ecc71";
+    const RAVENCLAW_BLUE = "#3498db";
+    const SILVER = "#bdc3c7";
+
+    const currentHost = window.location.hostname || "ministry-of-magic";
+    
+    function typeString(text, speed = 15, color = null, bold = false) {
+      return new Promise(resolve => {
+        let i = 0;
+        const span = document.createElement('span');
+        if (color) span.style.color = color;
+        if (bold) span.style.fontWeight = "bold";
+        if (color === GOLD) span.style.textShadow = "0 0 8px rgba(212, 175, 55, 0.6)";
+        terminal.appendChild(span);
+
+        function typeChar() {
+          if (i < text.length) {
+            span.textContent += text.charAt(i);
+            i++;
+            terminalBody.scrollTop = terminalBody.scrollHeight;
+            setTimeout(typeChar, speed + Math.random() * 10); 
+          } else {
+            resolve();
+          }
+        }
+        typeChar();
+      });
+    }
+
+    function printBlock(text, color = null) {
+      const span = document.createElement('span');
+      if (color) span.style.color = color;
+      span.style.textShadow = "0 0 5px rgba(212, 175, 55, 0.3)";
+      span.textContent = text;
+      terminal.appendChild(span);
+      terminalBody.scrollTop = terminalBody.scrollHeight;
+    }
+
+    function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    async function printPrompt() {
+      await typeString("⚡ ", 0, GOLD, true);
+      await typeString("harry", 0, GRYFFINDOR_RED, true);
+      await typeString("@", 0, PARCHMENT);
+      await typeString(currentHost, 0, GOLD, true);
+      await typeString(" ~ \n", 0, PARCHMENT);
+      await typeString("🪄 ❯ ", 0, GOLD);
+    }
+
+    async function getNetworkTelemetry() {
+      try {
+        const response = await fetch('https://ipapi.co/json/');
+        if (!response.ok) throw new Error('Network response was not ok');
+        return await response.json();
+      } catch (error) { return null; }
+    }
+
+    async function getAtmosphericData(lat, lon) {
+      try {
+        const response = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
+        if (!response.ok) throw new Error('Weather response was not ok');
+        return await response.json();
+      } catch (error) { return null; }
+    }
+
+    async function runBootSequence() {
+      const userHostString = `harry@${currentHost}`;
+      const dashes = "-".repeat(userHostString.length);
+
+      // Lightning Bolt ASCII Art
+      const fastfetch = `
+        ,/'          ${userHostString}
+      ,/'            ${dashes}
+    _/'              Realm: Hogwarts Castle
+  /_                 Wand: 11" Holly, Phoenix Feather
+    /'               House: Gryffindor
+   /'                Familiar: Snowy Owl (Hedwig)
+
+`;
+      printBlock(fastfetch, GOLD);
+      
+      await printPrompt();
+      await typeString("I solemnly swear that I am up to no good...\n\n", 40, SILVER, true);
+      await sleep(500);
+
+      await typeString("✨ ", 10, GOLD, true);
+      await typeString("Casting Revelio on network boundaries...\n", 10, null, true);
+      await sleep(500);
+
+      if (navigator.onLine) {
+        await typeString("  ├─ ", 10, GOLD);
+        await typeString("Floo Network: "); await typeString("CONNECTED\n", 10, SLYTHERIN_GREEN);
+        
+        await typeString("  ├─ ", 10, GOLD);
+        await typeString("Consulting the Marauder's Map...\n");
+        const netData = await getNetworkTelemetry();
+        
+        if (netData) {
+          await typeString(`  │  ├─ Magical Signature (IP): `, 10); await typeString(`${netData.ip}\n`, 10, RAVENCLAW_BLUE);
+          await typeString(`  │  ├─ Ministry Provider     : `, 10); await typeString(`${netData.org}\n`, 10, RAVENCLAW_BLUE);
+          await typeString(`  │  ╰─ Current Whereabouts   : `, 10); await typeString(`${netData.city}, ${netData.country_name}\n`, 10, RAVENCLAW_BLUE);
+
+          await typeString("✨ ", 10, GOLD, true);
+          await typeString("Checking Daily Prophet for weather...\n", 10, null, true);
+          await sleep(400);
+          
+          const weatherData = await getAtmosphericData(netData.latitude, netData.longitude);
+          if (weatherData && weatherData.current_weather) {
+            await typeString(`  ├─ `, 10, GOLD);
+            await typeString(`Temperature : `); await typeString(`${weatherData.current_weather.temperature} °C\n`, 10, SILVER);
+            await typeString(`  ╰─ `, 10, GOLD);
+            await typeString(`Wind Speed  : `); await typeString(`${weatherData.current_weather.windspeed} km/h (Broomstick safe)\n\n`, 10, SILVER);
+          } else {
+            await typeString("  ╰─ ", 10, GOLD); await typeString("Atmospheric prophecy: CLOUDED\n\n", 10, GRYFFINDOR_RED);
+          }
+        } else {
+          await typeString("  ╰─ ", 10, GOLD); await typeString("Marauder's Map: BLANK\n\n", 10, GRYFFINDOR_RED);
+        }
+      } else {
+        await typeString("  ╰─ ", 10, GOLD);
+        await typeString("Floo Network: "); await typeString("BLOCKED BY UMBRIDGE\n\n", 10, GRYFFINDOR_RED);
+      }
+      
+      await sleep(300);
+
+      await typeString("✨ ", 10, GOLD, true);
+      await typeString("Inspecting magical artifacts...\n", 10, null, true);
+      await sleep(400);
+      
+      await typeString("  ├─ ", 10, GOLD); await typeString("Artifact   : "); await typeString(`${navigator.platform} Omniocular\n`, 10, RAVENCLAW_BLUE);
+      await typeString("  ├─ ", 10, GOLD); await typeString("Magic Core : "); await typeString(`${navigator.hardwareConcurrency || "UNKNOWN"} threads\n`, 10, RAVENCLAW_BLUE);
+      await typeString("  ├─ ", 10, GOLD); await typeString("Pensieve   : "); await typeString(`${navigator.deviceMemory || "UNKNOWN"} GB capacity\n`, 10, RAVENCLAW_BLUE);
+      await typeString("  ╰─ ", 10, GOLD); await typeString("Vision     : "); await typeString(`${window.screen.width}x${window.screen.height} crystals\n\n`, 10, RAVENCLAW_BLUE);
+      
+      await sleep(300);
+
+      await typeString("✨ ", 10, GOLD, true);
+      await typeString("Measuring magical reserves...\n", 10, null, true);
+      
+      if ('getBattery' in navigator) {
+        const battery = await navigator.getBattery();
+        const charging = battery.charging ? "Ley Line (Charging)" : "Residual Magic (Draining)";
+        await typeString("  ├─ ", 10, GOLD); await typeString("Source     : "); await typeString(`${charging}\n`, 10, SILVER);
+        await typeString("  ╰─ ", 10, GOLD); await typeString("Power      : "); await typeString(`${Math.round(battery.level * 100)}%\n\n`, 10, SILVER);
+      } else {
+        await typeString("  ╰─ ", 10, GOLD); await typeString("Magic reserves: UNREADABLE\n\n", 10, GRYFFINDOR_RED);
+      }
+      
+      await printPrompt();
+    }
+
+    window.addEventListener('offline', async () => {
+      await typeString("\nwarning: ", 10, GRYFFINDOR_RED, true);
+      await typeString("Dementors have severed the connection.\n");
+      await printPrompt();
+    });
+
+    window.addEventListener('online', async () => {
+      await typeString("\n✨ ", 10, GOLD, true);
+      await typeString("Expecto Patronum! Connection restored.\n");
+      await printPrompt();
+    });
+
+    runBootSequence();
+  </script>
+
+</body>
+</html>
