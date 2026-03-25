@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ip info</title>
+  <style>
+    body {
+      background: radial-gradient(circle at 15% 50%, #2a2045, #11111b 40%, #0d0f16);
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    .window-wrapper {
+      position: relative;
+      width: 850px;
+      max-width: 92vw;
+      height: 550px;
+      border-radius: 12px;
+      background: linear-gradient(45deg, #89b4fa, #cba6f7);
+      padding: 2px; 
+      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), 0 0 20px rgba(203, 166, 247, 0.2);
+    }
+
+    .terminal-window {
+      width: 100%;
+      height: 100%;
+      background-color: rgba(30, 30, 46, 0.75); 
+      backdrop-filter: blur(15px); 
+      -webkit-backdrop-filter: blur(15px);
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .terminal-body {
+      padding: 25px;
+      flex-grow: 1;
+      overflow-y: auto;
+      overflow-x: auto; 
+      color: #cdd6f4; 
+      font-family: 'Fira Code', 'DejaVu Sans Mono', Consolas, monospace;
+      font-size: 15px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    .terminal-body::-webkit-scrollbar { width: 6px; height: 6px; }
+    .terminal-body::-webkit-scrollbar-track { background: transparent; }
+    .terminal-body::-webkit-scrollbar-thumb { background: rgba(205, 214, 244, 0.2); border-radius: 3px; }
+
+    #terminal {
+      white-space: pre; 
+      display: inline;
+    }
+
+    .cursor {
+      display: inline-block;
+      width: 8px;
+      height: 16px;
+      background-color: #cba6f7;
+      vertical-align: middle;
+      animation: blink 1s step-end infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+
+    @media (max-width: 768px) {
+      .window-wrapper { height: 85vh; }
+      .terminal-body { padding: 15px; font-size: 11px; }
+      .cursor { height: 12px; width: 6px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="window-wrapper">
+    <div class="terminal-window">
+      <div class="terminal-body" id="terminal-body">
+        <div id="terminal"></div><span class="cursor" id="cursor"></span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const terminal = document.getElementById('terminal');
+    const terminalBody = document.getElementById('terminal-body');
+    
+    const TEXT = "#cdd6f4";
+    const BLUE = "#89b4fa";
+    const GREEN = "#a6e3a1";
+    const RED = "#f38ba8";
+    const YELLOW = "#f9e2af";
+    const MAUVE = "#cba6f7";
+    const PEACH = "#fab387";
+
+    // Grab the current domain name, fallback to 'localhost' if running directly from a file
+    const currentHost = window.location.hostname || "localhost";
+    
+    function typeString(text, speed = 10, color = null, bold = false) {
+      return new Promise(resolve => {
+        let i = 0;
+        const span = document.createElement('span');
+        if (color) span.style.color = color;
+        if (bold) span.style.fontWeight = "bold";
+        terminal.appendChild(span);
+
+        function typeChar() {
+          if (i < text.length) {
+            span.textContent += text.charAt(i);
+            i++;
+            terminalBody.scrollTop = terminalBody.scrollHeight;
+            setTimeout(typeChar, speed + Math.random() * 5); 
+          } else {
+            resolve();
+          }
+        }
+        typeChar();
+      });
+    }
+
+    function printBlock(text, color = null) {
+      const span = document.createElement('span');
+      if (color) span.style.color = color;
+      span.textContent = text;
+      terminal.appendChild(span);
+      terminalBody.scrollTop = terminalBody.scrollHeight;
+    }
+
+    function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    async function printPrompt() {
+      await typeString("╭─", 0, MAUVE);
+      await typeString("basilisk", 0, BLUE, true); // Changed to basilisk
+      await typeString("@", 0, TEXT);
+      await typeString(currentHost, 0, MAUVE, true); // Uses the dynamic hostname
+      await typeString(" ~ \n", 0, BLUE);
+      await typeString("╰─❯ ", 0, MAUVE);
+    }
+
+    async function getNetworkTelemetry() {
+      try {
+        const response = await fetch('https://ipapi.co/json/');
+        if (!response.ok) throw new Error('Network response was not ok');
+        return await response.json();
+      } catch (error) { return null; }
+    }
+
+    async function getAtmosphericData(lat, lon) {
+      try {
+        const response = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
+        if (!response.ok) throw new Error('Weather response was not ok');
+        return await response.json();
+      } catch (error) { return null; }
+    }
+
+    async function runBootSequence() {
+      // Dynamically calculate dashes based on the length of "basilisk@hostname"
+      const userHostString = `basilisk@${currentHost}`;
+      const dashes = "-".repeat(userHostString.length);
+
+      const fastfetch = `
+      //             ${userHostString}
+    //  //           ${dashes}
+  //      //         OS: Arch Linux x86_64
+//          //       WM: Hyprland (Wayland)
+  //      //         Terminal: kitty
+    //  //           Theme: Catppuccin Mocha
+      //             Compositor: wlroots
+
+`;
+      printBlock(fastfetch, BLUE);
+      
+      await printPrompt();
+      await typeString("./hypr_diag.sh\n\n");
+      await sleep(300);
+
+      await typeString("◈ ", 10, MAUVE, true);
+      await typeString("Probing network interface...\n", 10, null, true);
+      await sleep(400);
+
+      if (navigator.onLine) {
+        await typeString("  ├─ ", 10, MAUVE);
+        await typeString("Link state: "); await typeString("ONLINE\n", 10, GREEN);
+        
+        await typeString("  ├─ ", 10, MAUVE);
+        await typeString("Fetching external telemetry...\n");
+        const netData = await getNetworkTelemetry();
+        
+        if (netData) {
+          await typeString(`  │  ├─ Public IP : `, 10); await typeString(`${netData.ip}\n`, 10, BLUE);
+          await typeString(`  │  ├─ ISP       : `, 10); await typeString(`${netData.org}\n`, 10, BLUE);
+          await typeString(`  │  ╰─ Location  : `, 10); await typeString(`${netData.city}, ${netData.country_name}\n`, 10, BLUE);
+
+          await typeString("◈ ", 10, MAUVE, true);
+          await typeString("Synchronizing meteorological data...\n", 10, null, true);
+          await sleep(400);
+          
+          const weatherData = await getAtmosphericData(netData.latitude, netData.longitude);
+          if (weatherData && weatherData.current_weather) {
+            await typeString(`  ├─ `, 10, MAUVE);
+            await typeString(`Temperature : `); await typeString(`${weatherData.current_weather.temperature} °C\n`, 10, PEACH);
+            await typeString(`  ╰─ `, 10, MAUVE);
+            await typeString(`Wind        : `); await typeString(`${weatherData.current_weather.windspeed} km/h\n\n`, 10, PEACH);
+          } else {
+            await typeString("  ╰─ ", 10, MAUVE); await typeString("Atmospheric data: ERROR\n\n", 10, RED);
+          }
+        } else {
+          await typeString("  ╰─ ", 10, MAUVE); await typeString("External telemetry: ERROR\n\n", 10, RED);
+        }
+      } else {
+        await typeString("  ╰─ ", 10, MAUVE);
+        await typeString("Link state: "); await typeString("OFFLINE\n\n", 10, RED);
+      }
+      
+      await sleep(300);
+
+      await typeString("◈ ", 10, MAUVE, true);
+      await typeString("Querying local hardware...\n", 10, null, true);
+      await sleep(400);
+      
+      await typeString("  ├─ ", 10, MAUVE); await typeString("Platform : "); await typeString(`${navigator.platform}\n`, 10, BLUE);
+      await typeString("  ├─ ", 10, MAUVE); await typeString("Cores    : "); await typeString(`${navigator.hardwareConcurrency || "UNKNOWN"}\n`, 10, BLUE);
+      await typeString("  ├─ ", 10, MAUVE); await typeString("Memory   : "); await typeString(`${navigator.deviceMemory || "UNKNOWN"} GB\n`, 10, BLUE);
+      await typeString("  ╰─ ", 10, MAUVE); await typeString("Display  : "); await typeString(`${window.screen.width}x${window.screen.height}\n\n`, 10, BLUE);
+      
+      await sleep(300);
+
+      await typeString("◈ ", 10, MAUVE, true);
+      await typeString("Checking power subsystem...\n", 10, null, true);
+      
+      if ('getBattery' in navigator) {
+        const battery = await navigator.getBattery();
+        const charging = battery.charging ? "AC" : "BATTERY";
+        await typeString("  ├─ ", 10, MAUVE); await typeString("Source   : "); await typeString(`${charging}\n`, 10, YELLOW);
+        await typeString("  ╰─ ", 10, MAUVE); await typeString("Capacity : "); await typeString(`${Math.round(battery.level * 100)}%\n\n`, 10, YELLOW);
+      } else {
+        await typeString("  ╰─ ", 10, MAUVE); await typeString("Power sensors: UNAVAILABLE\n\n", 10, RED);
+      }
+      
+      await printPrompt();
+    }
+
+    window.addEventListener('offline', async () => {
+      await typeString("\nerror: ", 10, RED, true);
+      await typeString("network interface disabled.\n");
+      await printPrompt();
+    });
+
+    window.addEventListener('online', async () => {
+      await typeString("\n◈ ", 10, MAUVE, true);
+      await typeString("network interface restored.\n");
+      await printPrompt();
+    });
+
+    runBootSequence();
+  </script>
+
+</body>
+</html>
